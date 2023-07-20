@@ -1,0 +1,15 @@
+development:
+  clients:
+    default:
+      uri: mongodb+srv://userReadOnly:7ZT817O8ejDfhnBM@minichallenge.q4nve1r.mongodb.net/minichallenge
+
+test:
+  clients:
+    default:
+      database: csit_rb_test
+      hosts:
+        - localhost:27017
+      options:
+        read:
+          mode: :primary
+        max_pool_size: 1
