@@ -2,50 +2,89 @@ class FlightController < ApplicationController
     include Validator
 
     def index
-        departureDate = params[:departureDate]
-        returnDate = params[:returnDate]
+        departureDate = valid_date?(params[:departureDate])
+        returnDate = valid_date?(params[:returnDate])
         destination = params[:destination]
-        if departureDate == nil || returnDate == nil || destination == nil
-            render json: {error: "Missing query parameters", status: 400}, status: :bad_request
-        elsif !valid_date?(departureDate) || !valid_date?(returnDate)
-            render json: {error: "Invalid date format", status: 400}, status: :bad_request
-        else
-            origin = "Singapore"
-            to_flights = Flight.where(srccity: origin, destcity: destination, date: departureDate)
-            from_flights = Flight.where(srccity: destination, destcity: origin, date: returnDate)
-
-            @result = []
-
-            to_flights.each do |t|
-                from_flights.each do |f|
-                    @result << {
-                        # city: destination,
-                        # departureDate: departureDate,
-                        # departureAirline: t.airline,
-                        # departurePrice: t.price,
-                        
-                        # returnDate: returnDate,
-                        # returnAirline: f.airline,
-                        # returnPrice: f.price
-                        
-                        "City" => destination,
-                        "Departure Date" => departureDate,
-                        "Departure Airline" => t.airline,
-                        "Departure Price" => t.price,
-                        
-                        "Return Date" => returnDate,
-                        "Return Airline" => f.airline,
-                        "Return Price" => f.price
-                    }
-                end
-            end
-
-            render json: @result, status: :ok
+        missing = %w(departureDate returnDate destination).select { |param| params[param].nil? }
+        if missing.length > 0
+            render json: {
+                    error: "Missing query parameters", 
+                    status: 400,
+                    missing: missing
+                }, status: :bad_request
+            return
+        elsif !departureDate || !returnDate
+            render json: {
+                    error: "Invalid date format", 
+                    status: 400,
+                    departureDate: departureDate,
+                    returnDate: returnDate
+                }, status: :bad_request
+            return
         end
-    end
 
-    # def show
-    #     @flight = Flight.find(params[:id])
-    #     render json: @flight
-    # end
+        origin = "Singapore"
+
+        to_flights = Flight.collection.aggregate([
+            { "$match" => {
+                "srccity" => origin,
+                "destcity" => destination,
+                "date" => departureDate
+            }},
+            { "$group" => {
+                "_id" => "$price",
+                "airlines" => { "$push" => "$airlinename" },
+            }},
+            { "$sort" => { _id: 1 }},
+            { "$limit" => 1 }
+        ])
+
+
+        from_flights = Flight.collection.aggregate([
+            { "$match" => {
+                "srccity" => destination,
+                "destcity" => origin,
+                "date" => returnDate
+            }},
+            { "$group" => {
+                "_id" => "$price",
+                "airlines" => { "$push" => "$airlinename" },
+            }},
+            { "$sort" => { "_id" => 1 }},
+            { "$limit" => 1 }
+        ])
+
+        @result = []
+        dept_price = 0
+        dept_airlines = []
+        return_price = 0
+        return_airlines = []
+
+        to_flights.each do |t|
+            dept_price = t["_id"]
+            dept_airlines = t["airlines"]
+        end
+
+        from_flights.each do |f|
+            return_price = f["_id"]
+            return_airlines = f["airlines"]
+        end
+
+        dept_airlines.each do |t|
+            return_airlines.each do |f|
+                @result << {
+                    "City" => destination,
+                    "Departure Date" => departureDate,
+                    "Departure Airline" => t,
+                    "Departure Price" => dept_price,
+                    
+                    "Return Date" => returnDate,
+                    "Return Airline" => f,
+                    "Return Price" => return_price,
+                }
+            end
+        end
+
+        render json: @result, status: :ok
+    end
 end
