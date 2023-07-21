@@ -5,7 +5,7 @@ class HotelController < ApplicationController
         checkInDate = params[:checkInDate]
         checkOutDate = params[:checkOutDate]
         destination = params[:destination]
-        if checkInDate == nil || checkOutDate == nil || destination == nil
+        if checkInDate.nil? || checkOutDate.nil? || destination.nil?
             render json: {error: "Missing query parameters", status: 400}, status: :bad_request
         elsif !valid_date?(checkInDate) || !valid_date?(checkOutDate)
             render json: {error: "Invalid date format", status: 400}, status: :bad_request
@@ -17,25 +17,42 @@ class HotelController < ApplicationController
                 return
             end
 
-            prices = {}
+            
+            query = Hotel.collection.aggregate([
+                { "$match" => {
+                    "city" => destination,
+                    "date" => {
+                        "$gte" => checkInDate,
+                        "$lt" => checkOutDate
+                    }
+                }},
+                {
+                    "$group" => {
+                        "_id" => "$hotelName",
+                        "price" => {
+                            "$sum" => "$price"
+                        }
+                    }
+                },
+                { "$group" => {
+                    "_id" => "$price",
+                    "hotels" => { "$push" => "$_id" }
+                }},
+                { "$sort" => { _id: 1 }},
+                { "$limit" => 1 }
+            ])
 
             @result = []
-            Hotel.where(city: destination, :date.gte => checkInDate, :date.lt => checkOutDate).each do |h|
-                if prices[h.hotelName] == nil
-                    prices[h.hotelName] = h.price
-                else
-                    prices[h.hotelName] += h.price
+            query.each do |min_price|
+                min_price["hotels"].each do |h|
+                    @result << {
+                        "City" => destination,
+                        "Check In Date" => checkInDate,
+                        "Check Out Date" => checkOutDate,
+                        "Hotel" => h,
+                        "Price" => min_price["_id"]
+                    }
                 end
-            end
-
-            prices.each do |k, v|
-                @result << {
-                    "City" => destination,
-                    "Check-in Date" => checkInDate,
-                    "Check-out Date" => checkOutDate,
-                    "Hotel" => k,
-                    "Price" => v
-                }
             end
 
             render json: @result, status: :ok
