@@ -16,22 +16,16 @@ class HotelController < ApplicationController
                 render json: {error: "Check-in date cannot be later than check-out date", status: 400}, status: :bad_request
                 return
             end
-
             
             query = Hotel.collection.aggregate([
                 { "$match" => {
                     "city" => destination,
-                    "date" => {
-                        "$gte" => checkInDate,
-                        "$lt" => checkOutDate
-                    }
+                    "date" => {"$gte" => checkInDate, "$lte" => checkOutDate}
                 }},
                 {
                     "$group" => {
                         "_id" => "$hotelName",
-                        "price" => {
-                            "$sum" => "$price"
-                        }
+                        "price" => { "$sum" => "$price" },
                     }
                 },
                 { "$group" => {
@@ -44,6 +38,7 @@ class HotelController < ApplicationController
 
             @result = []
             query.each do |min_price|
+                p min_price
                 min_price["hotels"].each do |h|
                     @result << {
                         "City" => destination,
