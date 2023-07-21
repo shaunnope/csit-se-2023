@@ -2,6 +2,7 @@ class HotelController < ApplicationController
     include Validator
 
     def index
+        # Validate query parameters
         checkInDate = valid_date?(params[:checkInDate])
         checkOutDate = valid_date?(params[:checkOutDate])
         destination = params[:destination]
@@ -28,23 +29,25 @@ class HotelController < ApplicationController
             return
         end
         
+        # Query database
         query = Hotel.collection.aggregate([
             { "$match" => {
                 "city" => destination,
                 "date" => {"$gte" => checkInDate, "$lte" => checkOutDate}
             }},
-            {
-                "$group" => {
+            # compute total price for each hotel for the entire stay
+            { "$group" => {
                     "_id" => "$hotelName",
                     "price" => { "$sum" => "$price" },
                 }
             },
+            # collect all hotels with the same price
             { "$group" => {
                 "_id" => "$price",
                 "hotels" => { "$push" => "$_id" }
             }},
             { "$sort" => { _id: 1 }},
-            { "$limit" => 1 }
+            { "$limit" => 1 } # get the cheapest hotels
         ])
 
         @result = []

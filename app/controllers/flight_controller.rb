@@ -2,6 +2,7 @@ class FlightController < ApplicationController
     include Validator
 
     def index
+        # Validate query parameters
         departureDate = valid_date?(params[:departureDate])
         returnDate = valid_date?(params[:returnDate])
         destination = params[:destination]
@@ -23,20 +24,23 @@ class FlightController < ApplicationController
             return
         end
 
+        # Query database
         origin = "Singapore"
 
         to_flights = Flight.collection.aggregate([
+            # filter by origin, destination, departure date
             { "$match" => {
                 "srccity" => origin,
                 "destcity" => destination,
                 "date" => departureDate
             }},
+            # collect all flights with the same price
             { "$group" => {
                 "_id" => "$price",
                 "airlines" => { "$push" => "$airlinename" },
             }},
             { "$sort" => { _id: 1 }},
-            { "$limit" => 1 }
+            { "$limit" => 1 } # get the cheapest flights
         ])
 
 
@@ -53,8 +57,8 @@ class FlightController < ApplicationController
             { "$sort" => { "_id" => 1 }},
             { "$limit" => 1 }
         ])
-
-        @result = []
+        
+        # Extract flight details from aggregation result
         dept_price = 0
         dept_airlines = []
         return_price = 0
@@ -70,6 +74,8 @@ class FlightController < ApplicationController
             return_airlines = f["airlines"]
         end
 
+        # Combine flight details into output array
+        @result = []
         dept_airlines.each do |t|
             return_airlines.each do |f|
                 @result << {

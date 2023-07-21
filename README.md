@@ -29,3 +29,9 @@ The base app for this project was generated using the [Ruby on Rails](https://ru
 ```bash
 rails new csit_rb --api --skip-active-record
 ```
+
+## Credits
+With this being my first time developing a Rails app, I relied on the following resources to get started:
+* [Rails Guides: Using Rails for API-only Applications](https://guides.rubyonrails.org/api_app.html)
+* [RapidAPI: How to Build a RESTful API in Ruby](https://rapidapi.com/blog/how-to-build-an-api-in-ruby/)
+* [Oliver DS: Creating a REST API with Rails](https://medium.com/@oliver.seq/creating-a-rest-api-with-rails-2a07f548e5dc)
